@@ -7,8 +7,8 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="theme-color" content="#0f0c29">
   <title>🏴‍☠️ Caccia al Tesoro</title>
-  <!-- jsQR: pure-JS QR decoder, no dependencies -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jsQR/1.4.0/jsQR.min.js"></script>
+  <!-- jsQR: served locally, no internet required -->
+  <script src="/jsqr.min.js"></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -487,9 +487,14 @@ document.getElementById('btn-timer').addEventListener('click', function() {
 });
 
 // ── QR Scanner ────────────────────────────────────────────────────────────
-let scanStream     = null;
-let scanAnimFrame  = null;
-let lastScanTime   = 0;
+let scanStream  = null;
+let scanTimerId = null;
+
+// Native BarcodeDetector (Chrome 83+, Edge 83+) — works fully offline
+let barcodeDetector = null;
+if ('BarcodeDetector' in window) {
+  try { barcodeDetector = new BarcodeDetector({ formats: ['qr_code'] }); } catch(e) {}
+}
 
 function showScanError(msg) {
   const el = document.getElementById('scan-error');
@@ -508,54 +513,64 @@ async function openScanner() {
     });
     video.srcObject = scanStream;
     await video.play();
-    scanAnimFrame = requestAnimationFrame(scanLoop);
+    scanTimerId = setTimeout(scanTick, 250);
   } catch (err) {
     if (location.protocol !== 'https:') {
-      // Suggest switching to the HTTPS port
       const httpsUrl = `https://${location.hostname}:8443${location.pathname}`;
       showScanError(
-        '🔒 La fotocamera richiede HTTPS.\n\n' +
+        'La fotocamera richiede HTTPS.\n\n' +
         'Apri questa pagina su:\n' + httpsUrl +
-        '\n\n(Accetta il certificato → "Avanzate" → "Procedi")'
+        '\n\n(Accetta il certificato -> "Avanzate" -> "Procedi")'
       );
     } else if (err.name === 'NotAllowedError') {
       showScanError('Permesso fotocamera negato.\nControlla le impostazioni del browser e riprova.');
     } else if (err.name === 'NotFoundError') {
       showScanError('Nessuna fotocamera trovata su questo dispositivo.');
     } else {
-      showScanError(`Fotocamera non disponibile: ${err.message}`);
+      showScanError('Fotocamera non disponibile: ' + err.message);
     }
   }
 }
 
 function closeScanner() {
-  if (scanAnimFrame) { cancelAnimationFrame(scanAnimFrame); scanAnimFrame = null; }
-  if (scanStream)    { scanStream.getTracks().forEach(t => t.stop()); scanStream = null; }
+  if (scanTimerId) { clearTimeout(scanTimerId); scanTimerId = null; }
+  if (scanStream)  { scanStream.getTracks().forEach(t => t.stop()); scanStream = null; }
   document.getElementById('scan-video').srcObject = null;
   document.getElementById('scanner-overlay').style.display = 'none';
 }
 
-function scanLoop(ts) {
+async function scanTick() {
   if (!scanStream) return;
-  scanAnimFrame = requestAnimationFrame(scanLoop);
-  if (ts - lastScanTime < 150) return; // ~6 fps is enough for QR scanning
-  lastScanTime = ts;
 
-  const video  = document.getElementById('scan-video');
-  const canvas = document.getElementById('scan-canvas');
-  if (video.readyState < video.HAVE_ENOUGH_DATA) return;
+  const video = document.getElementById('scan-video');
+  if (video.readyState >= video.HAVE_ENOUGH_DATA) {
+    let qrData = null;
 
-  // Downsample to max 640px wide for performance
-  const scale  = Math.min(1, 640 / video.videoWidth);
-  canvas.width  = Math.round(video.videoWidth  * scale);
-  canvas.height = Math.round(video.videoHeight * scale);
-  const ctx = canvas.getContext('2d');
-  ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    // Path 1: native BarcodeDetector — no internet required, fast
+    if (barcodeDetector) {
+      try {
+        const codes = await barcodeDetector.detect(video);
+        if (codes.length > 0) qrData = codes[0].rawValue;
+      } catch(e) {}
+    }
 
-  if (typeof jsQR === 'undefined') return; // CDN not loaded yet
-  const img  = ctx.getImageData(0, 0, canvas.width, canvas.height);
-  const code = jsQR(img.data, img.width, img.height, { inversionAttempts: 'dontInvert' });
-  if (code) handleScannedQR(code.data);
+    // Path 2: jsQR (served locally, works offline)
+    if (!qrData && typeof jsQR !== 'undefined') {
+      const canvas = document.getElementById('scan-canvas');
+      const scale  = Math.min(1, 640 / video.videoWidth);
+      canvas.width  = Math.round(video.videoWidth  * scale);
+      canvas.height = Math.round(video.videoHeight * scale);
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      const img  = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const code = jsQR(img.data, img.width, img.height, { inversionAttempts: 'attemptBoth' });
+      if (code) qrData = code.data;
+    }
+
+    if (qrData) { handleScannedQR(qrData); return; }
+  }
+
+  if (scanStream) scanTimerId = setTimeout(scanTick, 200); // ~5 fps
 }
 
 async function handleScannedQR(data) {
