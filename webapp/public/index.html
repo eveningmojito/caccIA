@@ -510,15 +510,20 @@ async function openScanner() {
     await video.play();
     scanAnimFrame = requestAnimationFrame(scanLoop);
   } catch (err) {
-    const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
-    if (isIOS && location.protocol !== 'https:') {
-      showScanError('Su iPhone la fotocamera in-app richiede HTTPS.\n\n👉 Usa la Camera app: inquadra il QR code e tocca il link che appare.');
+    if (location.protocol !== 'https:') {
+      // Suggest switching to the HTTPS port
+      const httpsUrl = `https://${location.hostname}:8443${location.pathname}`;
+      showScanError(
+        '🔒 La fotocamera richiede HTTPS.\n\n' +
+        'Apri questa pagina su:\n' + httpsUrl +
+        '\n\n(Accetta il certificato → "Avanzate" → "Procedi")'
+      );
     } else if (err.name === 'NotAllowedError') {
       showScanError('Permesso fotocamera negato.\nControlla le impostazioni del browser e riprova.');
     } else if (err.name === 'NotFoundError') {
       showScanError('Nessuna fotocamera trovata su questo dispositivo.');
     } else {
-      showScanError('Fotocamera non disponibile.\nUsa la fotocamera nativa del telefono.');
+      showScanError(`Fotocamera non disponibile: ${err.message}`);
     }
   }
 }

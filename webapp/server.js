@@ -1,13 +1,18 @@
 #!/usr/bin/env node
 'use strict';
 
-const http = require('http');
-const fs   = require('fs');
-const path = require('path');
-const os   = require('os');
-const url  = require('url');
+const http  = require('http');
+const https = require('https');
+const fs    = require('fs');
+const path  = require('path');
+const os    = require('os');
+const url   = require('url');
+const { execSync } = require('child_process');
 
-const PORT   = 8080;
+const PORT       = 8080;
+const HTTPS_PORT = 8443;
+const CERT_FILE  = path.join(__dirname, 'cert.pem');
+const KEY_FILE   = path.join(__dirname, 'key.pem');
 const PUBLIC = path.join(__dirname, 'public');
 const CLUES  = require('./data');
 const TOTAL  = CLUES.length; // 9
@@ -235,8 +240,27 @@ async function handleScan(req, res) {
   json(res, { ok: true });
 }
 
+// ─── Self-signed HTTPS cert ───────────────────────────────────────────────────
+// Generates cert.pem + key.pem via openssl if not present.
+// Required for getUserMedia (camera) on Chrome/Android and Safari/iOS on LAN.
+function ensureCert() {
+  if (fs.existsSync(CERT_FILE) && fs.existsSync(KEY_FILE)) return true;
+  try {
+    execSync(
+      `openssl req -x509 -newkey rsa:2048 -sha256 -days 3650 -nodes` +
+      ` -keyout "${KEY_FILE}" -out "${CERT_FILE}"` +
+      ` -subj "/CN=caccia-tesoro"`,
+      { stdio: 'ignore' }
+    );
+    console.log('✅ Certificato HTTPS generato (cert.pem + key.pem).');
+    return true;
+  } catch(e) {
+    return false;
+  }
+}
+
 // ─── Main dispatcher ──────────────────────────────────────────────────────────
-const server = http.createServer(async (req, res) => {
+async function requestHandler(req, res) {
   const { pathname } = url.parse(req.url);
   const method = req.method;
 
@@ -274,39 +298,61 @@ const server = http.createServer(async (req, res) => {
   }
 
   res.writeHead(405); res.end();
-});
+}
 
-// ─── Start ────────────────────────────────────────────────────────────────────
-server.listen(PORT, '0.0.0.0', () => {
+// ─── Start servers ────────────────────────────────────────────────────────────
+const hasCert   = ensureCert();
+const httpSrv   = http.createServer(requestHandler);
+const httpsSrv  = hasCert
+  ? https.createServer({ key: fs.readFileSync(KEY_FILE), cert: fs.readFileSync(CERT_FILE) }, requestHandler)
+  : null;
+
+httpSrv.listen(PORT, '0.0.0.0', () => {
   console.log('\n🏴‍☠️  Caccia al Tesoro — Server avviato!\n');
 
   if (ALL_IPS.length === 0) {
     console.log(`⚠️  Nessun IP di rete trovato. Usa: http://localhost:${PORT}/`);
   } else {
-    console.log('📱  URL per i dispositivi sul WiFi:\n');
     ALL_IPS.forEach(({ address, name }) => {
-      console.log(`    http://${address}:${PORT}/         (adattatore: ${name})`);
+      const http_url  = `http://${address}:${PORT}`;
+      const https_url = `https://${address}:${HTTPS_PORT}`;
+      console.log(`📡  Adattatore: ${name}`);
+      console.log(`    HTTP  (admin PC)      : ${http_url}/admin`);
+      if (hasCert) {
+        console.log(`    HTTPS (telefono bimbe): ${https_url}/`);
+        console.log(`    HTTPS (QR da stampare): ${https_url}/qrprint`);
+      } else {
+        console.log(`    HTTP  (telefono bimbe): ${http_url}/`);
+      }
+      console.log('');
     });
-    console.log('');
-    console.log(`⚙️   Admin panel  : http://${IP}:${PORT}/admin`);
-    console.log(`🖨️   QR da stampare: http://${IP}:${PORT}/qrprint`);
   }
 
-  console.log(`\n🔑  PIN admin predefinito: ${state.adminPass}`);
+  console.log(`🔑  PIN admin predefinito: ${state.adminPass}`);
+
+  if (hasCert) {
+    console.log('\n─────────────────────────────────────────────────────');
+    console.log('📱  PRIMA VISITA dal telefono (una volta sola):');
+    console.log(`    1. Apri https://${IP}:${HTTPS_PORT}/ sul telefono`);
+    console.log('    2. Tocca "Avanzate" → "Procedi" (o "Visita il sito non sicuro")');
+    console.log('    3. Il bottone 📷 aprirà la fotocamera senza problemi');
+    console.log('─────────────────────────────────────────────────────');
+  } else {
+    console.log('\n⚠️  openssl non trovato — HTTPS non disponibile.');
+    console.log('   La fotocamera in-app non funzionerà su Chrome/Android e Safari/iOS.');
+    console.log('   Installa openssl e riavvia il server per abilitare HTTPS.');
+    console.log('   Windows: scarica da https://slproweb.com/products/Win32OpenSSL.html');
+  }
 
   console.log('\n─────────────────────────────────────────────────────');
-  console.log('🔥  Se il telefono non riesce a connettersi:');
-  console.log('');
-  console.log('  Windows → apri Pannello di Controllo > Windows Defender');
-  console.log(`           Firewall > Regole in entrata > Nuova regola`);
-  console.log(`           Porta TCP ${PORT}, Consenti connessione.`);
-  console.log('           Oppure lancia questo comando in PowerShell admin:');
-  console.log(`           netsh advfirewall firewall add rule name="CacciaTestoro" dir=in action=allow protocol=TCP localport=${PORT}`);
-  console.log('');
-  console.log('  macOS   → Preferenze di Sistema > Sicurezza > Firewall');
-  console.log('           Aggiungi node (o disabilita temporaneamente).');
-  console.log('');
-  console.log('  Linux   → sudo ufw allow ' + PORT);
+  console.log('🔥  Firewall: se il telefono non raggiunge il server:');
+  console.log(`   Windows: netsh advfirewall firewall add rule name="CacciaTestoro" dir=in action=allow protocol=TCP localport=${PORT}-${HTTPS_PORT}`);
+  console.log(`   macOS  : Preferenze di Sistema → Firewall → aggiungi node`);
+  console.log(`   Linux  : sudo ufw allow ${PORT} && sudo ufw allow ${HTTPS_PORT}`);
   console.log('─────────────────────────────────────────────────────');
-  console.log('\n    Premi CTRL+C per fermare il server.\n');
+  console.log('\n    Premi CTRL+C per fermare.\n');
 });
+
+if (httpsSrv) {
+  httpsSrv.listen(HTTPS_PORT, '0.0.0.0');
+}
