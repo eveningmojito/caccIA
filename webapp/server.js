@@ -28,16 +28,30 @@ function bump() { state.version++; }
 function clue(n)  { return CLUES[n - 1]; }
 function current() { return clue(state.step); }
 
-// ─── Detect LAN IP ───────────────────────────────────────────────────────────
-function localIP() {
-  for (const ifaces of Object.values(os.networkInterfaces())) {
+// ─── Detect LAN IPs ──────────────────────────────────────────────────────────
+// Returns all non-internal IPv4 addresses, home-network ranges first.
+function getAllLocalIPs() {
+  const candidates = [];
+  for (const [name, ifaces] of Object.entries(os.networkInterfaces())) {
     for (const i of ifaces) {
-      if (i.family === 'IPv4' && !i.internal) return i.address;
+      if (i.family !== 'IPv4' || i.internal) continue;
+      const a = i.address;
+      // Skip link-local (169.254.x.x) and Docker/VM defaults (172.17-19.x.x)
+      if (a.startsWith('169.254.')) continue;
+      const priority =
+        a.startsWith('192.168.') ? 0 :
+        a.startsWith('10.')       ? 1 :
+        (a.startsWith('172.') && parseInt(a.split('.')[1]) >= 16 && parseInt(a.split('.')[1]) <= 31) ? 2 : 3;
+      candidates.push({ name, address: a, priority });
     }
   }
-  return '127.0.0.1';
+  candidates.sort((a, b) => a.priority - b.priority);
+  return candidates;
 }
-const IP = localIP();
+
+const ALL_IPS = getAllLocalIPs();
+// Best guess: first in priority-sorted list, fallback to localhost
+const IP = ALL_IPS.length ? ALL_IPS[0].address : '127.0.0.1';
 
 // ─── MIME types ───────────────────────────────────────────────────────────────
 const MIME = {
@@ -111,6 +125,7 @@ function adminState() {
     canApprove:     state.phase === 'waiting',
     canReject:      state.phase === 'waiting',
     ip:             IP,
+    allIPs:         ALL_IPS.map(x => ({ address: x.address, iface: x.name })),
     port:           PORT
   };
 }
@@ -249,9 +264,34 @@ const server = http.createServer(async (req, res) => {
 // ─── Start ────────────────────────────────────────────────────────────────────
 server.listen(PORT, '0.0.0.0', () => {
   console.log('\n🏴‍☠️  Caccia al Tesoro — Server avviato!\n');
-  console.log(`📱  Telefono bimbe : http://${IP}:${PORT}/`);
-  console.log(`⚙️   Admin         : http://${IP}:${PORT}/admin`);
-  console.log(`🖨️   QR da stampare: http://${IP}:${PORT}/qrprint`);
+
+  if (ALL_IPS.length === 0) {
+    console.log(`⚠️  Nessun IP di rete trovato. Usa: http://localhost:${PORT}/`);
+  } else {
+    console.log('📱  URL per i dispositivi sul WiFi:\n');
+    ALL_IPS.forEach(({ address, name }) => {
+      console.log(`    http://${address}:${PORT}/         (adattatore: ${name})`);
+    });
+    console.log('');
+    console.log(`⚙️   Admin panel  : http://${IP}:${PORT}/admin`);
+    console.log(`🖨️   QR da stampare: http://${IP}:${PORT}/qrprint`);
+  }
+
   console.log(`\n🔑  PIN admin predefinito: ${state.adminPass}`);
+
+  console.log('\n─────────────────────────────────────────────────────');
+  console.log('🔥  Se il telefono non riesce a connettersi:');
+  console.log('');
+  console.log('  Windows → apri Pannello di Controllo > Windows Defender');
+  console.log(`           Firewall > Regole in entrata > Nuova regola`);
+  console.log(`           Porta TCP ${PORT}, Consenti connessione.`);
+  console.log('           Oppure lancia questo comando in PowerShell admin:');
+  console.log(`           netsh advfirewall firewall add rule name="CacciaTestoro" dir=in action=allow protocol=TCP localport=${PORT}`);
+  console.log('');
+  console.log('  macOS   → Preferenze di Sistema > Sicurezza > Firewall');
+  console.log('           Aggiungi node (o disabilita temporaneamente).');
+  console.log('');
+  console.log('  Linux   → sudo ufw allow ' + PORT);
+  console.log('─────────────────────────────────────────────────────');
   console.log('\n    Premi CTRL+C per fermare il server.\n');
 });

@@ -254,8 +254,9 @@
 
   <!-- Server info -->
   <div class="server-info" id="server-info">
-    Pagina bimbe: <a id="girls-link" href="/" target="_blank">—</a><br>
-    QR da stampare: <a id="qr-link" href="/qrprint" target="_blank">/qrprint</a>
+    <strong style="color:var(--gold)">URL per il telefono delle bimbe:</strong><br>
+    <div id="girls-links" style="margin:6px 0 10px;"></div>
+    QR da stampare: <a href="/qrprint" target="_blank" style="color:var(--gold)">/qrprint</a>
   </div>
 </div>
 
@@ -341,12 +342,15 @@ function renderPanel(st) {
   document.getElementById('btn-approve').disabled = !st.canApprove;
   document.getElementById('btn-reject').disabled  = !st.canReject;
 
-  // Server info
-  const ip   = st.ip;
+  // Server info — show all available IPs
   const port = st.port;
-  const base = `http://${ip}:${port}`;
-  const gl   = document.getElementById('girls-link');
-  gl.href = base + '/'; gl.textContent = base + '/';
+  const ips  = st.allIPs && st.allIPs.length ? st.allIPs : [{ address: st.ip, iface: '' }];
+  const linksEl = document.getElementById('girls-links');
+  linksEl.innerHTML = ips.map(({ address, iface }) => {
+    const u = `http://${address}:${port}/`;
+    return `<a href="${u}" target="_blank" style="display:block;color:var(--gold);font-size:13px;">${u}</a>`
+         + (iface ? `<span style="font-size:11px;color:var(--dim)">${iface}</span>` : '');
+  }).join('<br>');
 }
 
 setInterval(fetchState, 2000);
