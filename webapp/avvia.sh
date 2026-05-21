@@ -12,18 +12,11 @@ fi
 
 # Rileva se siamo dentro WSL
 if grep -qi microsoft /proc/version 2>/dev/null; then
-  WSL_IP=$(hostname -I 2>/dev/null | awk '{print $1}')
   echo ""
-  echo "⚠️  Rilevato WSL2 — la rete virtuale WSL non è raggiungibile dal WiFi."
-  echo ""
-  echo "   Esegui questo comando in PowerShell come AMMINISTRATORE su Windows,"
-  echo "   UNA VOLTA prima di usare il server:"
-  echo ""
-  echo "   Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass"
-  echo "   .\\wsl-portforward.ps1"
-  echo ""
-  echo "   (Lo script è nella cartella webapp\\ del progetto)"
-  echo "   Poi usa l'IP WiFi di Windows (da 'ipconfig'), NON $WSL_IP"
+  echo "ATTENZIONE: stai girando dentro WSL2."
+  echo "La rete WSL non e' raggiungibile dal WiFi."
+  echo "Avvia il server direttamente su Windows:"
+  echo "  avvia.bat   oppure:   node server.js"
   echo ""
 fi
 
