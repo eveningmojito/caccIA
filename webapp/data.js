@@ -37,9 +37,9 @@ module.exports = [
     locationIcon: '🪞',
     cluePoem: 'Ottimo lavoro, principesse dell\'avventura!\nOra andate dove ogni mattina inizia la giornata pura.\nUno specchio vi guarda, vi vede riflesse —\nIl prossimo indizio è lì, tra le vostre immagini stesse.',
     challengeTitle: 'Prova 4 — Il Mimo Matto',
-    challengeText: 'Ogni bambina mima una parola senza parlare né fare suoni. Le altre devono indovinare!\n\n🐘  Elefante\n🦷  Dentista\n🍕  Fare la pizza\n🐴  Cavalcare un cavallo\n⛸️  Scivolare sul ghiaccio\n\n1 minuto a parola — se non indovinano si può riprovare con un mimo diverso!',
+    challengeText: 'L\'arbitro sussurra una parola segreta a una bambina alla volta.\n\nLei deve mimarla senza parlare né fare suoni — le altre devono indovinare!\n\n⏱ 1 minuto a parola.\nSe non indovinano, la bambina può riprovare con un mimo diverso.\n\nDovete indovinare tutte e 5 le parole!',
     timerSecs: 0,
-    adminHint: 'Sussurrate la parola all\'orecchio della bambina che deve mimare. Le altre non devono sentire. 1 minuto a parola — se le compagne non indovinano entro il tempo, la bambina può provare con un mimo diverso. Dovete indovinare tutte e 5 le parole.'
+    adminHint: 'Sussurrate queste parole una alla volta — una per bambina, le altre non devono sentire:\n\n🐘  Elefante\n🦷  Dentista\n🍕  Fare la pizza\n🐴  Cavalcare un cavallo\n⛸️  Scivolare sul ghiaccio\n\n1 minuto a parola. Se non indovinano, la bambina riprova con un mimo diverso. Dovete indovinare tutte e 5.'
   },
   {
     id: 5,
