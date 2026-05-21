@@ -57,9 +57,9 @@ module.exports = [
     locationIcon: '📚',
     cluePoem: 'Super! Siete detective straordinarie, senza dubbio!\nOra cercate un posto pieno di storie e di sussurri.\nDove le avventure dormono tra copertine colorate —\nI libri vi aspettano, principesse animate!',
     challengeTitle: 'Prova 6 — Il Disegno Telefonico',
-    challengeText: 'Sedete in fila! L\'arbitro sussurra una parola solo all\'ultima. Lei la disegna sulla schiena della bambina davanti con il dito, e così via fino alla prima, che deve indovinare e dirla ad alta voce!\n\n🦋  Farfalla\n🏰  Castello\n🌈  Arcobaleno\n\nDovete indovinare almeno 2 parole su 3.',
+    challengeText: 'Sedete in fila! L\'arbitro sussurra una parola segreta solo all\'ultima.\n\nLei la disegna sulla schiena della bambina davanti con il dito, e così via fino alla prima, che deve indovinare e dirla ad alta voce!\n\nNessuna parola, solo disegni silenziosi.\n\nDovete indovinare almeno 2 parole su 3.',
     timerSecs: 0,
-    adminHint: 'Sussurrate la parola solo all\'ultima della fila. Ognuna disegna sulla schiena di chi sta davanti — nessuna parola, solo disegni silenziosi! 2 minuti a parola. Passate alla parola successiva anche se non indovinano. Superano se indovinano ≥ 2/3.'
+    adminHint: 'Sussurrate queste parole una alla volta, solo all\'ultima della fila:\n\n🦋  Farfalla\n🏰  Castello\n🌈  Arcobaleno\n\nOgnuna disegna sulla schiena di chi sta davanti — silenzio assoluto! 2 minuti a parola. Passate alla successiva anche se non indovinano. Superano se indovinano ≥ 2/3.'
   },
   {
     id: 7,
