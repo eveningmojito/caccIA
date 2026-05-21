@@ -7,15 +7,18 @@ const fs    = require('fs');
 const path  = require('path');
 const os    = require('os');
 const url   = require('url');
-const { execSync } = require('child_process');
 
 const PORT       = 8080;
 const HTTPS_PORT = 8443;
-const CERT_FILE  = path.join(__dirname, 'cert.pem');
-const KEY_FILE   = path.join(__dirname, 'key.pem');
 const PUBLIC = path.join(__dirname, 'public');
 const CLUES  = require('./data');
 const TOTAL  = CLUES.length; // 9
+
+// ─── Embedded self-signed certificate (pre-generated, valid 10 years) ─────────
+// Eliminates any dependency on openssl or external tools on Windows/WSL/Mac/Linux.
+// The browser will show a one-time "not secure" warning — click Advanced -> Proceed.
+const EMBEDDED_CERT = '-----BEGIN CERTIFICATE-----\nMIIDETCCAfmgAwIBAgIUCfY0bbx7xd0Io4BGfhiXshvyn94wDQYJKoZIhvcNAQEL\nBQAwGDEWMBQGA1UEAwwNY2FjY2lhLXRlc29ybzAeFw0yNjA1MjEyMjA4MTFaFw0z\nNjA1MTgyMjA4MTFaMBgxFjAUBgNVBAMMDWNhY2NpYS10ZXNvcm8wggEiMA0GCSqG\nSIb3DQEBAQUAA4IBDwAwggEKAoIBAQCww8B8UD/uiw8TzPpCdVzoy2gEm0gvrWlL\ne03oefU7VNCfPhzrRaHr5b7/tKBowdW2hRK1qBUmuhEULao3iV/zkVb8YBOkpNNx\nazHVfEDSbPyU91Y5M9rTd2yRA1x1/XzxlhsHC58J2VTj9iPIjwXPTdH6ZuG9S+ER\nyxe68HldAd4oTwNYMHSgg+pi+5qxcrIH3n4BPDTHESro2tEziThTu3heMa3GWRR6\nMgblenZzrHTWNlZImlMucUbXo+Q1cOAaZJqbjYANQ8VSmkGT5o5cYn+Mr6p3/ZU8\n5htgpUsP53Msm3MrihD1vKRyclvnpJRUC3hkURvY5eE1SM/JRf1rAgMBAAGjUzBR\nMB0GA1UdDgQWBBScfWqTckQfUH4cUpaqIrFsaib3zDAfBgNVHSMEGDAWgBScfWqT\nckQfUH4cUpaqIrFsaib3zDAPBgNVHRMBAf8EBTADAQH/MA0GCSqGSIb3DQEBCwUA\nA4IBAQChOyEQAmaxnipsCVKvysQ9dratgKv6A5ORfsiHabO0O8rw+vYOB17wG3oY\ncI3c3fBQjpwpfC4uYa5o8vNMwZR4KAJCh33rOTKL3DL6zygXGbWx0t9MZ/kX1qsw\nphAXlQiccOrQUBfKhbVZn2oPWTIR92re4zhYiXMVyEEWBpgD145IQR7SD3ejc0Tv\nEfAr1rPYlcU1mpDMugHwq4/eMdYuF7i70jiSuYAc+72rcZBNnSiiDz+cDx+UL/Jw\nRb/A8QQpFrInMHqoSCczn/PVEOxYD2EnK1l1lKjQk6CJF2yA49aKPVQFsXfzNCAi\n9k4i6hJFO8Diu3nmlu4IAMvbX7RS\n-----END CERTIFICATE-----';
+const EMBEDDED_KEY  = '-----BEGIN PRIVATE KEY-----\nMIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQCww8B8UD/uiw8T\nzPpCdVzoy2gEm0gvrWlLe03oefU7VNCfPhzrRaHr5b7/tKBowdW2hRK1qBUmuhEU\nLao3iV/zkVb8YBOkpNNxazHVfEDSbPyU91Y5M9rTd2yRA1x1/XzxlhsHC58J2VTj\n9iPIjwXPTdH6ZuG9S+ERyxe68HldAd4oTwNYMHSgg+pi+5qxcrIH3n4BPDTHESro\n2tEziThTu3heMa3GWRR6MgblenZzrHTWNlZImlMucUbXo+Q1cOAaZJqbjYANQ8VS\nmkGT5o5cYn+Mr6p3/ZU85htgpUsP53Msm3MrihD1vKRyclvnpJRUC3hkURvY5eE1\nSM/JRf1rAgMBAAECggEAHynDq6byPnnhpJoEnObYBGqn4fgGV/F4mMgaShwGMfmX\n9hsbOhdCnrYYYDhV92IE7XK0g7YoVHWFQUtzsOrVMbmz3jaKAALXDC3b0UlgnDh+\npzybxOXxdEqfp0kyadLQzj6qcSmJVlEseCwSzu74FT4hAMZWkerouRxXCKwQmWbJ\nhXUrDDUwdbBg7eBmO3t8VWJlr/Kx7821Izj0D5vm+FjnHpGulTp2rjv00UdKsdzT\nQGSeJ5Vq3ZnVJfEKPxi7AwTpd8j1AKz/+I5qn47yh3T3xrqQyQgziYPl/mq/d83e\nV1ykVBXsnTToav68b2RkMHJEZ/gC5RgOWnD+IlFDMQKBgQDq6ve8qvPyGaZUf9hK\nTWwrgz5EdnzmYHP0sEl8SBOHZM34k+vr00R+VUFzfbUaD9E173FWZ1ViK4Mfif5r\nnJf5iEsnhsFLw2lavadG+qkJIkZoccKoCvQe4ZEhY5wpFHZPCrmTzxy4HKU35r3F\nI5z7EwwsKGdPSLNyfMUKZ3IhNQKBgQDAoMP3XnxZ3yoDSsIWYwM0vXbP4/yM3z5n\nbs48DB6lc1b6PY8SOcglv9ifhRqqT+0I/TH0ZfQxJ7H1f/AuA58c/lCnT8UNY6TI\nUKc4gV1hR5ecAjDz/RQscqdHIaqomEhejge5JYRUkZ/JEyWOm/OqseX5zi70HGJk\nYnjba9sYHwKBgG4ImvuTM2pd20vPChdbhmQnOD5HJZ+e5BFjlTgSZptPey6I0sOG\nFJn8Awk+g1puuDbELdkj05mE+gkG0NXE5mZqEZG1C8sZ/7oSBU040X5GwKXhSyT8\n5HWmgB0clCOlwvio9F2ocDJIsJarjI3PbZMoy9XPIvy+99aTXJPP+mRVAoGAI9FA\n3wxInwVp8HbEJBmBDRt1ri48VY1lMyJdYrj2MdmCgMFVixQHbU2A4BiF3slBz/wU\nf9c9Uq6I3pdNd6Dgwyleod2pTFYM29pzXYRgcqg3PqEBrTyPtbwT8pwF+ZdnTX2n\nXfvl4Tu6tE7FGwFQi5rMomh+PpHQkc3lnxctBA0CgYEAr/perBJayPGzNV8RMMg3\nbi83CWkvHzkaJYB+KRPn5akqiVZ25xZe/8dDkVNjdWDgfEdxnwUAQCIeTZbyavUA\nYUlS637ijNJPWT1PRAAOXdBghWMiSxJQy0cIFvRNWAjiCUH4Q8I4jk8wzgHYpL5Q\nMPl1WgAc9WNdCwPzpbkc52Q=\n-----END PRIVATE KEY-----';
 
 // ─── Game state ──────────────────────────────────────────────────────────────
 // step: 1..9  (which tappa is active)
@@ -240,25 +243,6 @@ async function handleScan(req, res) {
   json(res, { ok: true });
 }
 
-// ─── Self-signed HTTPS cert ───────────────────────────────────────────────────
-// Generates cert.pem + key.pem via openssl if not present.
-// Required for getUserMedia (camera) on Chrome/Android and Safari/iOS on LAN.
-function ensureCert() {
-  if (fs.existsSync(CERT_FILE) && fs.existsSync(KEY_FILE)) return true;
-  try {
-    execSync(
-      `openssl req -x509 -newkey rsa:2048 -sha256 -days 3650 -nodes` +
-      ` -keyout "${KEY_FILE}" -out "${CERT_FILE}"` +
-      ` -subj "/CN=caccia-tesoro"`,
-      { stdio: 'ignore' }
-    );
-    console.log('✅ Certificato HTTPS generato (cert.pem + key.pem).');
-    return true;
-  } catch(e) {
-    return false;
-  }
-}
-
 // ─── Main dispatcher ──────────────────────────────────────────────────────────
 async function requestHandler(req, res) {
   const { pathname } = url.parse(req.url);
@@ -301,58 +285,40 @@ async function requestHandler(req, res) {
 }
 
 // ─── Start servers ────────────────────────────────────────────────────────────
-const hasCert   = ensureCert();
-const httpSrv   = http.createServer(requestHandler);
-const httpsSrv  = hasCert
-  ? https.createServer({ key: fs.readFileSync(KEY_FILE), cert: fs.readFileSync(CERT_FILE) }, requestHandler)
-  : null;
+const httpSrv  = http.createServer(requestHandler);
+const httpsSrv = https.createServer({ key: EMBEDDED_KEY, cert: EMBEDDED_CERT }, requestHandler);
 
 httpSrv.listen(PORT, '0.0.0.0', () => {
-  console.log('\n🏴‍☠️  Caccia al Tesoro — Server avviato!\n');
+  console.log('\n Caccia al Tesoro -- Server avviato!\n');
 
   if (ALL_IPS.length === 0) {
-    console.log(`⚠️  Nessun IP di rete trovato. Usa: http://localhost:${PORT}/`);
+    console.log('  Nessun IP di rete trovato. Usa: http://localhost:' + PORT + '/');
   } else {
-    ALL_IPS.forEach(({ address, name }) => {
-      const http_url  = `http://${address}:${PORT}`;
-      const https_url = `https://${address}:${HTTPS_PORT}`;
-      console.log(`📡  Adattatore: ${name}`);
-      console.log(`    HTTP  (admin PC)      : ${http_url}/admin`);
-      if (hasCert) {
-        console.log(`    HTTPS (telefono bimbe): ${https_url}/`);
-        console.log(`    HTTPS (QR da stampare): ${https_url}/qrprint`);
-      } else {
-        console.log(`    HTTP  (telefono bimbe): ${http_url}/`);
-      }
+    ALL_IPS.forEach(function(iface) {
+      console.log('Adattatore: ' + iface.name);
+      console.log('  HTTP  (admin PC)       : http://'  + iface.address + ':' + PORT       + '/admin');
+      console.log('  HTTPS (telefono bimbe) : https://' + iface.address + ':' + HTTPS_PORT + '/');
+      console.log('  HTTPS (QR da stampare) : https://' + iface.address + ':' + HTTPS_PORT + '/qrprint');
       console.log('');
     });
   }
 
-  console.log(`🔑  PIN admin predefinito: ${state.adminPass}`);
-
-  if (hasCert) {
-    console.log('\n─────────────────────────────────────────────────────');
-    console.log('📱  PRIMA VISITA dal telefono (una volta sola):');
-    console.log(`    1. Apri https://${IP}:${HTTPS_PORT}/ sul telefono`);
-    console.log('    2. Tocca "Avanzate" → "Procedi" (o "Visita il sito non sicuro")');
-    console.log('    3. Il bottone 📷 aprirà la fotocamera senza problemi');
-    console.log('─────────────────────────────────────────────────────');
-  } else {
-    console.log('\n⚠️  openssl non trovato — HTTPS non disponibile.');
-    console.log('   La fotocamera in-app non funzionerà su Chrome/Android e Safari/iOS.');
-    console.log('   Installa openssl e riavvia il server per abilitare HTTPS.');
-    console.log('   Windows: scarica da https://slproweb.com/products/Win32OpenSSL.html');
-  }
-
-  console.log('\n─────────────────────────────────────────────────────');
-  console.log('🔥  Firewall: se il telefono non raggiunge il server:');
-  console.log(`   Windows: netsh advfirewall firewall add rule name="CacciaTestoro" dir=in action=allow protocol=TCP localport=${PORT}-${HTTPS_PORT}`);
-  console.log(`   macOS  : Preferenze di Sistema → Firewall → aggiungi node`);
-  console.log(`   Linux  : sudo ufw allow ${PORT} && sudo ufw allow ${HTTPS_PORT}`);
-  console.log('─────────────────────────────────────────────────────');
-  console.log('\n    Premi CTRL+C per fermare.\n');
+  console.log('PIN admin predefinito: ' + state.adminPass);
+  console.log('');
+  console.log('-------------------------------------------------------');
+  console.log('PRIMA VISITA dal telefono (una volta sola):');
+  console.log('  1. Apri  https://' + IP + ':' + HTTPS_PORT + '/  sul telefono');
+  console.log('  2. Tocca "Avanzate" -> "Procedi al sito"');
+  console.log('  3. Il bottone fotocamera funzionera senza problemi');
+  console.log('-------------------------------------------------------');
+  console.log('Firewall -- se il telefono non raggiunge il server:');
+  console.log('  Windows (PowerShell admin):');
+  console.log('    netsh advfirewall firewall add rule name="CacciaTestoro8080" dir=in action=allow protocol=TCP localport=8080');
+  console.log('    netsh advfirewall firewall add rule name="CacciaTestoro8443" dir=in action=allow protocol=TCP localport=8443');
+  console.log('  macOS  : Impostazioni -> Firewall -> aggiungi node');
+  console.log('  Linux  : sudo ufw allow 8080 && sudo ufw allow 8443');
+  console.log('-------------------------------------------------------');
+  console.log('  Premi CTRL+C per fermare.\n');
 });
 
-if (httpsSrv) {
-  httpsSrv.listen(HTTPS_PORT, '0.0.0.0');
-}
+httpsSrv.listen(HTTPS_PORT, '0.0.0.0');
