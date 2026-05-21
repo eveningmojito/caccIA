@@ -6,6 +6,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="theme-color" content="#0f0c29">
+  <link rel="manifest" href="/manifest.json">
   <title>🏴‍☠️ Caccia al Tesoro</title>
   <!-- jsQR: served locally, no internet required -->
   <script src="/jsqr.min.js"></script>
@@ -322,6 +323,14 @@
 </div>
 
 <script>
+// ── Fullscreen ────────────────────────────────────────────────────────────
+// Request fullscreen on first tap (Android Chrome/Edge); iOS uses the PWA manifest.
+document.addEventListener('click', function goFS() {
+  const el = document.documentElement;
+  const req = el.requestFullscreen || el.webkitRequestFullscreen;
+  if (req) req.call(el).catch(() => {});
+}, { once: true });
+
 // ── Starfield ──────────────────────────────────────────────────────────────
 (function() {
   const c = document.getElementById('stars');

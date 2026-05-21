@@ -1,0 +1,9 @@
+{
+  "name": "Caccia al Tesoro",
+  "short_name": "Caccia",
+  "display": "standalone",
+  "start_url": "/",
+  "background_color": "#0f0c29",
+  "theme_color": "#0f0c29",
+  "orientation": "portrait-primary"
+}
