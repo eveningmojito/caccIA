@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="theme-color" content="#0f0c29">
+  <title>🏴‍☠️ Caccia al Tesoro</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:          #0f0c29;
+      --gold:        #FFD700;
+      --gold2:       #FFA500;
+      --purple:      #7c3aed;
+      --pink:        #ec4899;
+      --green:       #10b981;
+      --red:         #ef4444;
+      --glass:       rgba(255,255,255,0.07);
+      --glass-b:     rgba(255,255,255,0.14);
+      --gold-glass:  rgba(255,215,0,0.09);
+      --gold-b:      rgba(255,215,0,0.35);
+      --text:        #fff;
+      --dim:         rgba(255,255,255,0.65);
+      --dimmer:      rgba(255,255,255,0.35);
+      --r:           20px;
+      --r-lg:        28px;
+      --shadow:      0 20px 60px rgba(0,0,0,0.55);
+      --max:         480px;
+    }
+
+    html, body {
+      height: 100%;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: linear-gradient(135deg, #0f0c29 0%, #302b63 55%, #24243e 100%);
+      background-attachment: fixed;
+      color: var(--text);
+      overflow-x: hidden;
+      -webkit-tap-highlight-color: transparent;
+      touch-action: manipulation;
+    }
+
+    /* ── Starfield ── */
+    #stars { position: fixed; inset: 0; pointer-events: none; z-index: 0; }
+
+    /* ── Screens ── */
+    .screen {
+      display: none;
+      position: relative; z-index: 1;
+      min-height: 100dvh;
+      padding: 24px 16px 40px;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 20px;
+    }
+    .screen.active { display: flex; }
+
+    /* ── Cards ── */
+    .card {
+      background: var(--glass);
+      border: 1px solid var(--glass-b);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border-radius: var(--r-lg);
+      padding: 28px 22px;
+      width: 100%; max-width: var(--max);
+      box-shadow: var(--shadow);
+    }
+    .card.gold { background: var(--gold-glass); border-color: var(--gold-b); }
+
+    /* ── Progress ── */
+    .progress-wrap { width: 100%; max-width: var(--max); text-align: center; }
+    .progress-label { font-size: 12px; text-transform: uppercase; letter-spacing: 1.5px; color: var(--dim); margin-bottom: 10px; }
+    .progress-stars { display: flex; gap: 5px; justify-content: center; flex-wrap: wrap; }
+    .star { font-size: 18px; filter: grayscale(1) opacity(.25); transition: filter .4s; }
+    .star.done { filter: none; animation: star-pop .5s cubic-bezier(.175,.885,.32,1.275); }
+    @keyframes star-pop { 0%{transform:scale(0)} 70%{transform:scale(1.4)} 100%{transform:scale(1)} }
+
+    /* ── Buttons ── */
+    .btn {
+      display: flex; align-items: center; justify-content: center; gap: 10px;
+      width: 100%; max-width: var(--max);
+      padding: 20px 24px; border: none; border-radius: var(--r);
+      font-size: 18px; font-weight: 700; cursor: pointer;
+      transition: transform .15s, box-shadow .15s;
+      -webkit-user-select: none; user-select: none;
+      letter-spacing: .3px;
+    }
+    .btn:active { transform: scale(.95); }
+    .btn-gold   { background: linear-gradient(135deg,var(--gold),var(--gold2)); color:#1a0a00; box-shadow:0 8px 24px rgba(255,165,0,.4); }
+    .btn-green  { background: linear-gradient(135deg,var(--green),#059669);     color:#fff;    box-shadow:0 8px 24px rgba(16,185,129,.4); }
+    .btn-purple { background: linear-gradient(135deg,var(--purple),#5b21b6);    color:#fff;    box-shadow:0 8px 24px rgba(124,58,237,.4); }
+    .btn-ghost  { background: var(--glass); border: 1px solid var(--glass-b); color: var(--dim); font-size: 14px; padding: 12px 18px; }
+
+    /* ── Clue ── */
+    .clue-step  { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 2px; color: var(--gold); margin-bottom: 6px; }
+    .clue-icon  { font-size: 60px; text-align: center; display: block; margin: 6px 0 18px; animation: float 4s ease-in-out infinite; filter: drop-shadow(0 0 14px rgba(255,255,255,.25)); }
+    @keyframes float { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-10px)} }
+    .clue-poem  { font-size: 17px; line-height: 1.75; font-style: italic; text-align: center; color: var(--text); }
+    .clue-poem .line { display: block; opacity: 0; animation: slide-up .5s forwards; }
+    @keyframes slide-up { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }
+    .scan-hint {
+      display: flex; align-items: center; gap: 10px;
+      background: var(--gold-glass); border: 1px solid var(--gold-b);
+      border-radius: 14px; padding: 14px 18px;
+      font-size: 14px; color: var(--gold); font-weight: 600;
+      max-width: var(--max); width: 100%;
+    }
+
+    /* ── Challenge ── */
+    .ch-icon  { font-size: 52px; text-align: center; display: block; margin-bottom: 10px; }
+    .ch-title { font-size: 21px; font-weight: 800; color: var(--gold); text-align: center; margin-bottom: 14px; }
+    .ch-text  { font-size: 16px; line-height: 1.75; white-space: pre-line; color: var(--text); margin-bottom: 14px; }
+    .ch-timer {
+      display: flex; flex-direction: column; align-items: center; gap: 8px;
+      margin: 4px 0 14px;
+    }
+    .timer-ring { position: relative; width: 80px; height: 80px; }
+    .timer-ring svg { transform: rotate(-90deg); }
+    .t-bg { fill:none; stroke:rgba(255,255,255,.1); stroke-width:6; }
+    .t-fg { fill:none; stroke:var(--gold); stroke-width:6; stroke-linecap:round;
+            stroke-dasharray:220; stroke-dashoffset:0; transition:stroke-dashoffset 1s linear, stroke .5s; }
+    .t-fg.urgent { stroke: var(--red); }
+    .t-num { position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:800;color:var(--gold); }
+    .t-num.urgent { color: var(--red); }
+    .btn-timer { max-width: 200px; font-size: 14px; padding: 10px 16px; }
+
+    /* ── Waiting ── */
+    .spinner {
+      width: 64px; height: 64px;
+      border: 5px solid rgba(255,215,0,.15);
+      border-top-color: var(--gold);
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+    @keyframes spin { to{transform:rotate(360deg)} }
+    .wait-title { font-size: 22px; font-weight: 800; color: var(--gold); text-align: center; }
+    .wait-sub   { font-size: 15px; color: var(--dim); text-align: center; line-height: 1.6; }
+
+    /* ── Victory ── */
+    #screen-done { gap: 24px; text-align: center; }
+    .trophy { font-size: 96px; animation: float 3s ease-in-out infinite; filter: drop-shadow(0 0 28px rgba(255,215,0,.9)); }
+    .v-title {
+      font-size: clamp(30px, 8vw, 42px); font-weight: 900; line-height: 1.15;
+      background: linear-gradient(135deg,var(--gold),var(--gold2),var(--pink));
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+    }
+    .v-sub { font-size: 17px; color: var(--dim); line-height: 1.6; }
+    .diploma {
+      border: 2px solid var(--gold); border-radius: var(--r-lg);
+      padding: 26px 20px; text-align: center; max-width: var(--max); width: 100%;
+      background: var(--gold-glass);
+    }
+    .diploma-head { font-size: 11px; letter-spacing: 3px; text-transform: uppercase; color: var(--gold); font-weight: 700; margin-bottom: 10px; }
+    .diploma-body { font-size: 16px; line-height: 1.7; }
+    .diploma-seal { font-size: 30px; margin-top: 12px; }
+
+    /* ── Confetti ── */
+    .confetti-piece {
+      position: fixed; top: -12px; pointer-events: none; z-index: 300;
+      border-radius: 2px; animation: confetti-fall linear forwards;
+    }
+    @keyframes confetti-fall { to { top: 110vh; opacity: 0; } }
+
+    /* ── Responsive ── */
+    @media (min-width: 600px) {
+      .clue-poem { font-size: 19px; }
+      .ch-text   { font-size: 17px; }
+      .btn       { font-size: 20px; padding: 22px 28px; }
+    }
+  </style>
+</head>
+<body>
+<canvas id="stars"></canvas>
+
+<!-- CLUE SCREEN -->
+<div id="screen-clue" class="screen active">
+  <div class="progress-wrap">
+    <div class="progress-label" id="prog-label">Tappa 1 di 9</div>
+    <div class="progress-stars" id="prog-stars"></div>
+  </div>
+
+  <div class="card" id="clue-card">
+    <div class="clue-step" id="clue-step">Tappa 1</div>
+    <span class="clue-icon" id="clue-icon">🧊</span>
+    <div class="clue-poem" id="clue-poem"></div>
+  </div>
+
+  <div class="scan-hint">
+    <span style="font-size:28px;">📷</span>
+    <span>Trovate la stanza, scansionate il QR code con la fotocamera!</span>
+  </div>
+</div>
+
+<!-- CHALLENGE SCREEN -->
+<div id="screen-challenge" class="screen">
+  <div class="progress-wrap">
+    <div class="progress-label" id="ch-prog-label">Tappa 1 di 9</div>
+    <div class="progress-stars" id="ch-prog-stars"></div>
+  </div>
+
+  <div class="card gold" id="ch-card">
+    <span class="ch-icon" id="ch-icon">🤸</span>
+    <div class="ch-title" id="ch-title">La Catena Umana</div>
+    <div class="ch-text" id="ch-text"></div>
+
+    <!-- Timer (shown only for timed challenges) -->
+    <div class="ch-timer" id="timer-wrap" style="display:none;">
+      <div class="timer-ring">
+        <svg viewBox="0 0 80 80" width="80" height="80">
+          <circle class="t-bg" cx="40" cy="40" r="35"/>
+          <circle class="t-fg" id="t-fg" cx="40" cy="40" r="35"/>
+        </svg>
+        <div class="t-num" id="t-num">2:00</div>
+      </div>
+      <div style="font-size:13px;color:var(--dim);">Tempo rimanente</div>
+      <button class="btn btn-ghost btn-timer" id="btn-timer">▶️ Avvia timer</button>
+    </div>
+  </div>
+
+  <button class="btn btn-green" id="btn-ready">
+    ✅ Pronti per la valutazione!
+  </button>
+
+  <button class="btn btn-ghost" id="btn-back" style="max-width:220px;">
+    ← Rileggi l'indizio
+  </button>
+</div>
+
+<!-- WAITING SCREEN -->
+<div id="screen-waiting" class="screen">
+  <div class="spinner"></div>
+  <div class="wait-title">In attesa dell'arbitro...</div>
+  <div class="wait-sub">L'arbitro sta valutando la prova.<br>Aspettate il segnale! 🔔</div>
+</div>
+
+<!-- VICTORY SCREEN -->
+<div id="screen-done" class="screen">
+  <span class="trophy">🏆</span>
+  <div class="v-title">Tesoro Trovato!</div>
+  <div class="v-sub">Avete completato tutte e 9 le tappe<br>con coraggio, intelligenza e amicizia!</div>
+  <div class="diploma">
+    <div class="diploma-head">Diploma Ufficiale</div>
+    <div class="diploma-body">Le Principesse Avventurose hanno dimostrato<br><strong>coraggio, intelligenza e spirito di squadra.</strong></div>
+    <div class="diploma-seal">👑⭐🏅⭐👑</div>
+  </div>
+</div>
+
+<script>
+// ── Starfield ──────────────────────────────────────────────────────────────
+(function() {
+  const c = document.getElementById('stars');
+  const ctx = c.getContext('2d');
+  let stars = [];
+  function resize() {
+    c.width = innerWidth; c.height = innerHeight;
+    stars = Array.from({length: 110}, () => ({
+      x: Math.random() * c.width, y: Math.random() * c.height,
+      r: Math.random() * 1.4 + .3, o: Math.random()
+    }));
+  }
+  function draw() {
+    ctx.clearRect(0, 0, c.width, c.height);
+    stars.forEach(s => {
+      s.o += (Math.random() - .5) * .025;
+      s.o = Math.max(.08, Math.min(.9, s.o));
+      ctx.beginPath(); ctx.arc(s.x, s.y, s.r, 0, 6.28);
+      ctx.fillStyle = `rgba(255,255,255,${s.o})`; ctx.fill();
+    });
+    requestAnimationFrame(draw);
+  }
+  resize(); addEventListener('resize', resize); draw();
+})();
+
+// ── State & polling ────────────────────────────────────────────────────────
+let lastVersion = -1;
+let timerInterval = null;
+let timerTotal = 0;
+
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+
+function renderProgress(step, total, labelId, starsId) {
+  document.getElementById(labelId).textContent = `Tappa ${step} di ${total}`;
+  document.getElementById(starsId).innerHTML =
+    Array.from({length: total}, (_, i) =>
+      `<span class="star${i < step - 1 ? ' done' : ''}" style="animation-delay:${i*.07}s">⭐</span>`
+    ).join('');
+}
+
+function renderPoem(poem) {
+  const el = document.getElementById('clue-poem');
+  el.innerHTML = '';
+  poem.split('\n').forEach((line, i) => {
+    const s = document.createElement('span');
+    s.className = 'line';
+    s.textContent = line;
+    s.style.animationDelay = `${i * .18}s`;
+    el.appendChild(s);
+    if (i < poem.split('\n').length - 1) el.appendChild(document.createElement('br'));
+  });
+}
+
+function resetTimer() {
+  clearInterval(timerInterval); timerInterval = null;
+  const fg = document.getElementById('t-fg');
+  const num = document.getElementById('t-num');
+  if (fg)  { fg.style.strokeDashoffset = 0; fg.classList.remove('urgent'); }
+  if (num) { num.classList.remove('urgent'); }
+  document.getElementById('btn-timer').style.display = 'block';
+}
+
+function startTimer(secs) {
+  let left = secs; timerTotal = secs;
+  const fg  = document.getElementById('t-fg');
+  const num = document.getElementById('t-num');
+  document.getElementById('btn-timer').style.display = 'none';
+  clearInterval(timerInterval);
+  timerInterval = setInterval(() => {
+    left--;
+    fg.style.strokeDashoffset = 220 * (1 - left / timerTotal);
+    const m = Math.floor(left / 60), s = left % 60;
+    num.textContent = `${m}:${String(s).padStart(2,'0')}`;
+    const urgent = left <= 10;
+    fg.classList.toggle('urgent', urgent);
+    num.classList.toggle('urgent', urgent);
+    if (left <= 0) { clearInterval(timerInterval); num.textContent = '⏰'; }
+  }, 1000);
+}
+
+function applyState(st) {
+  if (st.version === lastVersion) return;
+  lastVersion = st.version;
+  resetTimer();
+
+  if (st.phase === 'done') { showScreen('screen-done'); launchConfetti(); return; }
+
+  renderProgress(st.step, st.totalSteps, 'prog-label', 'prog-stars');
+  renderProgress(st.step, st.totalSteps, 'ch-prog-label', 'ch-prog-stars');
+
+  if (st.phase === 'clue') {
+    document.getElementById('clue-step').textContent = `Tappa ${st.step}`;
+    document.getElementById('clue-icon').textContent = st.locationIcon;
+    renderPoem(st.cluePoem);
+    showScreen('screen-clue');
+    return;
+  }
+
+  if (st.phase === 'waiting') {
+    showScreen('screen-waiting');
+    return;
+  }
+
+  // phase === 'challenge'
+  const ch = st.challenge;
+  document.getElementById('ch-icon').textContent = st.locationIcon;
+  document.getElementById('ch-title').textContent = ch.title;
+  document.getElementById('ch-text').textContent  = ch.text;
+
+  const tw = document.getElementById('timer-wrap');
+  if (ch.timerSecs > 0) {
+    tw.style.display = 'flex';
+    const m = Math.floor(ch.timerSecs / 60), s = ch.timerSecs % 60;
+    document.getElementById('t-num').textContent = `${m}:${String(s).padStart(2,'0')}`;
+    document.getElementById('t-fg').style.strokeDashoffset = 0;
+    document.getElementById('btn-timer').dataset.secs = ch.timerSecs;
+  } else {
+    tw.style.display = 'none';
+  }
+  showScreen('screen-challenge');
+}
+
+async function poll() {
+  try {
+    const res = await fetch('/api/state');
+    const st  = await res.json();
+    applyState(st);
+  } catch(e) { /* network hiccup — try again next tick */ }
+}
+
+// ── QR scan handling ──────────────────────────────────────────────────────
+// When the camera app opens /?qr=N or server redirects back here, we immediately poll.
+(async function handleQrRedirect() {
+  const p = new URLSearchParams(location.search);
+  if (p.has('refresh')) {
+    history.replaceState({}, '', '/');
+    await poll();
+  }
+})();
+
+// Initial load + recurring poll
+poll();
+setInterval(poll, 2000);
+
+// ── Button events ─────────────────────────────────────────────────────────
+document.getElementById('btn-ready').addEventListener('click', async () => {
+  document.getElementById('btn-ready').disabled = true;
+  try {
+    await fetch('/api/ready', { method: 'POST' });
+    showScreen('screen-waiting');
+  } finally {
+    document.getElementById('btn-ready').disabled = false;
+  }
+});
+
+document.getElementById('btn-back').addEventListener('click', poll);
+
+document.getElementById('btn-timer').addEventListener('click', function() {
+  startTimer(parseInt(this.dataset.secs, 10));
+});
+
+// ── Confetti ───────────────────────────────────────────────────────────────
+function launchConfetti() {
+  const colors = ['#FFD700','#FF69B4','#7c3aed','#10b981','#FF4500','#00CED1','#FF1493','#fff'];
+  for (let i = 0; i < 90; i++) {
+    setTimeout(() => {
+      const el = document.createElement('div');
+      el.className = 'confetti-piece';
+      el.style.cssText = `left:${Math.random()*100}vw;background:${colors[i%colors.length]};`
+        + `width:${7+Math.random()*8}px;height:${7+Math.random()*8}px;`
+        + `border-radius:${Math.random()>.5?'50%':'2px'};`
+        + `animation-duration:${2.5+Math.random()*2}s;`
+        + `transform:rotate(${Math.random()*360}deg)`;
+      document.body.appendChild(el);
+      setTimeout(() => el.remove(), 5000);
+    }, i * 45);
+  }
+}
+</script>
+</body>
+</html>

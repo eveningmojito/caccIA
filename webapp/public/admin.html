@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#1e1b4b">
+  <title>⚙️ Admin — Caccia al Tesoro</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg:      #1e1b4b;
+      --surface: #2d2a5e;
+      --border:  rgba(255,255,255,.12);
+      --gold:    #FFD700;
+      --gold2:   #FFA500;
+      --green:   #10b981;
+      --red:     #ef4444;
+      --orange:  #f97316;
+      --blue:    #3b82f6;
+      --text:    #fff;
+      --dim:     rgba(255,255,255,.6);
+      --r:       16px;
+    }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: linear-gradient(160deg, var(--bg) 0%, #0f0c29 100%);
+      background-attachment: fixed;
+      color: var(--text);
+      min-height: 100dvh;
+    }
+
+    /* ── Login ── */
+    #login-wrap {
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      min-height: 100dvh; padding: 32px 20px; gap: 24px;
+    }
+    .login-title { font-size: 28px; font-weight: 800; text-align: center; }
+    .login-sub   { font-size: 14px; color: var(--dim); text-align: center; }
+    .pin-dots { display: flex; gap: 14px; }
+    .pin-dot  {
+      width: 16px; height: 16px; border-radius: 50%;
+      border: 2px solid var(--border); background: transparent;
+      transition: background .2s, border-color .2s;
+    }
+    .pin-dot.filled { background: var(--gold); border-color: var(--gold); }
+    .numpad {
+      display: grid; grid-template-columns: repeat(3,1fr); gap: 10px;
+      width: 100%; max-width: 280px;
+    }
+    .nk {
+      background: rgba(255,255,255,.07); border: 1px solid var(--border);
+      border-radius: 14px; height: 62px; font-size: 22px; font-weight: 700;
+      color: var(--text); cursor: pointer; transition: background .1s, transform .1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .nk:active { background: rgba(255,255,255,.15); transform: scale(.93); }
+    .nk.empty  { visibility: hidden; }
+    .pin-err   { color: var(--red); font-size: 13px; font-weight: 600; min-height: 18px; text-align: center; }
+    @keyframes shake { 0%,100%{transform:translateX(0)} 20%{transform:translateX(-8px)} 40%{transform:translateX(8px)} 60%{transform:translateX(-5px)} 80%{transform:translateX(5px)} }
+    .shake { animation: shake .4s ease; }
+
+    /* ── Main panel (hidden until logged in) ── */
+    #panel { display: none; max-width: 540px; margin: 0 auto; padding: 20px 16px 48px; }
+
+    /* ── Header ── */
+    .header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 14px 18px; background: rgba(255,255,255,.06);
+      border: 1px solid var(--border); border-radius: var(--r);
+      margin-bottom: 18px;
+    }
+    .header h1  { font-size: 18px; font-weight: 800; }
+    .header img { width: 32px; height: 32px; }
+    .conn-dot   { width: 10px; height: 10px; border-radius: 50%; background: var(--green); display: inline-block; margin-right: 6px; animation: pulse 2s infinite; }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+    .conn-label { font-size: 12px; color: var(--dim); }
+
+    /* ── Status card ── */
+    .status-card {
+      background: rgba(255,255,255,.06); border: 1px solid var(--border);
+      border-radius: var(--r); padding: 20px; margin-bottom: 16px;
+    }
+    .status-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+    .step-badge {
+      background: linear-gradient(135deg,var(--gold),var(--gold2));
+      color: #1a0a00; font-size: 13px; font-weight: 800;
+      padding: 5px 14px; border-radius: 100px;
+    }
+    .phase-badge {
+      font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px;
+      padding: 5px 12px; border-radius: 100px;
+    }
+    .phase-clue      { background: rgba(59,130,246,.2);   color: var(--blue);   border: 1px solid rgba(59,130,246,.4); }
+    .phase-challenge { background: rgba(249,115,22,.2);   color: var(--orange); border: 1px solid rgba(249,115,22,.4); }
+    .phase-waiting   { background: rgba(239,68,68,.2);    color: var(--red);    border: 1px solid rgba(239,68,68,.4); }
+    .phase-done      { background: rgba(16,185,129,.2);   color: var(--green);  border: 1px solid rgba(16,185,129,.4); }
+
+    .location-name { font-size: 22px; font-weight: 800; margin: 12px 0 4px; }
+    .location-icon { font-size: 40px; margin-right: 10px; }
+    .section-label { font-size: 11px; text-transform: uppercase; letter-spacing: 1.5px; color: var(--dim); margin-bottom: 6px; font-weight: 600; }
+    .hint-box {
+      background: rgba(0,0,0,.25); border-left: 3px solid var(--gold);
+      border-radius: 0 10px 10px 0; padding: 12px 14px;
+      font-size: 14px; line-height: 1.65; color: rgba(255,255,255,.85);
+      white-space: pre-line;
+    }
+
+    /* ── Action buttons ── */
+    .btn-approve {
+      width: 100%; padding: 22px; border: none; border-radius: var(--r);
+      font-size: 20px; font-weight: 800; cursor: pointer; margin-bottom: 12px;
+      background: linear-gradient(135deg,var(--green),#059669);
+      color: #fff; box-shadow: 0 8px 24px rgba(16,185,129,.4);
+      transition: transform .15s, opacity .15s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-approve:active  { transform: scale(.96); }
+    .btn-approve:disabled { opacity: .35; cursor: not-allowed; transform: none; }
+
+    .btn-reject {
+      width: 100%; padding: 16px; border: none; border-radius: var(--r);
+      font-size: 16px; font-weight: 700; cursor: pointer; margin-bottom: 20px;
+      background: linear-gradient(135deg,var(--red),#dc2626);
+      color: #fff; box-shadow: 0 6px 18px rgba(239,68,68,.3);
+      transition: transform .15s, opacity .15s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-reject:active  { transform: scale(.96); }
+    .btn-reject:disabled { opacity: .35; cursor: not-allowed; transform: none; }
+
+    .secondary-actions {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 10px;
+      margin-bottom: 24px;
+    }
+    .btn-sec {
+      padding: 14px 12px; border: 1px solid var(--border);
+      border-radius: 14px; background: rgba(255,255,255,.06);
+      color: var(--dim); font-size: 14px; font-weight: 600;
+      cursor: pointer; transition: background .15s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-sec:active { background: rgba(255,255,255,.12); }
+
+    /* ── Settings ── */
+    .settings-card {
+      background: rgba(255,255,255,.04); border: 1px solid var(--border);
+      border-radius: var(--r); padding: 18px; margin-bottom: 16px;
+    }
+    .settings-title { font-size: 14px; font-weight: 700; color: var(--dim); margin-bottom: 12px; }
+    .field-row { display: flex; gap: 10px; align-items: center; }
+    .field-input {
+      flex: 1; background: rgba(0,0,0,.3); border: 1px solid var(--border);
+      border-radius: 10px; padding: 12px 14px; font-size: 16px; color: var(--text);
+      outline: none;
+    }
+    .field-input:focus { border-color: var(--gold); }
+    .btn-save {
+      padding: 12px 18px; background: linear-gradient(135deg,var(--gold),var(--gold2));
+      border: none; border-radius: 10px; font-size: 14px; font-weight: 700;
+      color: #1a0a00; cursor: pointer; white-space: nowrap;
+    }
+
+    /* ── Toast ── */
+    #toast {
+      position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(20px);
+      background: rgba(30,27,75,.95); border: 1px solid var(--border);
+      border-radius: 100px; padding: 10px 22px; font-size: 14px; font-weight: 600;
+      backdrop-filter: blur(12px);
+      opacity: 0; transition: opacity .3s, transform .3s;
+      pointer-events: none; z-index: 100; white-space: nowrap;
+    }
+    #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+    /* ── Server info ── */
+    .server-info {
+      font-size: 13px; color: var(--dim); text-align: center; margin-top: 12px;
+      line-height: 1.7;
+    }
+    .server-info a { color: var(--gold); text-decoration: none; }
+  </style>
+</head>
+<body>
+
+<!-- ── Login ── -->
+<div id="login-wrap">
+  <div style="font-size:56px; text-align:center;">⚙️</div>
+  <div class="login-title">Pannello Arbitro</div>
+  <div class="login-sub">Inserisci il PIN per accedere</div>
+  <div class="pin-dots" id="login-dots">
+    <div class="pin-dot"></div><div class="pin-dot"></div>
+    <div class="pin-dot"></div><div class="pin-dot"></div>
+  </div>
+  <div class="pin-err" id="login-err"></div>
+  <div class="numpad">
+    <button class="nk" data-n="1">1</button><button class="nk" data-n="2">2</button><button class="nk" data-n="3">3</button>
+    <button class="nk" data-n="4">4</button><button class="nk" data-n="5">5</button><button class="nk" data-n="6">6</button>
+    <button class="nk" data-n="7">7</button><button class="nk" data-n="8">8</button><button class="nk" data-n="9">9</button>
+    <button class="nk empty"></button><button class="nk" data-n="0">0</button><button class="nk" id="nk-del">⌫</button>
+  </div>
+</div>
+
+<!-- ── Main panel ── -->
+<div id="panel">
+  <div class="header">
+    <div>
+      <h1>🏴‍☠️ Arbitro</h1>
+      <span class="conn-dot"></span><span class="conn-label">connesso</span>
+    </div>
+    <div style="text-align:right">
+      <div id="hdr-step" style="font-size:13px;font-weight:700;color:var(--gold)"></div>
+      <div id="hdr-loc"  style="font-size:12px;color:var(--dim);margin-top:2px"></div>
+    </div>
+  </div>
+
+  <!-- Status -->
+  <div class="status-card">
+    <div class="status-row">
+      <span id="step-badge" class="step-badge">Tappa 1/9</span>
+      <span id="phase-badge" class="phase-badge phase-clue">Indizio</span>
+    </div>
+    <div style="margin-top:14px;display:flex;align-items:center;">
+      <span id="loc-icon" class="location-icon">🧊</span>
+      <span id="loc-name" class="location-name">Frigorifero</span>
+    </div>
+  </div>
+
+  <!-- Admin hint -->
+  <div id="hint-wrap" style="margin-bottom:16px;">
+    <div class="section-label">Note per l'arbitro</div>
+    <div class="hint-box" id="hint-text">—</div>
+  </div>
+
+  <!-- Approve / Reject -->
+  <button id="btn-approve" class="btn-approve" disabled>✅ Approva — Prova Superata!</button>
+  <button id="btn-reject"  class="btn-reject"  disabled>❌ Riprova — Non è bastato</button>
+
+  <!-- Secondary actions -->
+  <div class="secondary-actions">
+    <button class="btn-sec" id="btn-prev">⏮ Tappa precedente</button>
+    <button class="btn-sec" id="btn-skip">⏭ Salta tappa</button>
+  </div>
+  <button class="btn-sec" id="btn-reset" style="width:100%;margin-bottom:24px;color:#f87171;border-color:rgba(239,68,68,.3);">
+    🗑️ Ricomincia dal principio
+  </button>
+
+  <!-- Change PIN -->
+  <div class="settings-card">
+    <div class="settings-title">⚙️ Cambia PIN admin</div>
+    <div class="field-row">
+      <input type="number" class="field-input" id="new-pin" placeholder="Nuovo PIN (4+ cifre)" inputmode="numeric" maxlength="8">
+      <button class="btn-save" id="btn-setpass">Salva</button>
+    </div>
+  </div>
+
+  <!-- Server info -->
+  <div class="server-info" id="server-info">
+    Pagina bimbe: <a id="girls-link" href="/" target="_blank">—</a><br>
+    QR da stampare: <a id="qr-link" href="/qrprint" target="_blank">/qrprint</a>
+  </div>
+</div>
+
+<!-- Toast -->
+<div id="toast"></div>
+
+<script>
+// ── Login ──────────────────────────────────────────────────────────────────
+let adminPass = '';
+let pinBuf    = '';
+
+function updateDots() {
+  document.querySelectorAll('#login-dots .pin-dot').forEach((d,i) => {
+    d.classList.toggle('filled', i < pinBuf.length);
+  });
+}
+
+async function checkLogin() {
+  const res  = await fetch('/api/adminauth', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({pass: pinBuf}) });
+  const data = await res.json();
+  if (data.ok) {
+    adminPass = pinBuf;
+    document.getElementById('login-wrap').style.display = 'none';
+    document.getElementById('panel').style.display = 'block';
+    fetchState();
+  } else {
+    const dots = document.getElementById('login-dots');
+    document.getElementById('login-err').textContent = 'PIN errato — riprova!';
+    dots.classList.add('shake');
+    setTimeout(() => dots.classList.remove('shake'), 400);
+    pinBuf = ''; updateDots();
+  }
+}
+
+document.querySelectorAll('.nk[data-n]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    if (pinBuf.length >= 8) return;
+    pinBuf += btn.dataset.n;
+    updateDots();
+    document.getElementById('login-err').textContent = '';
+    if (pinBuf.length >= 4) checkLogin();
+  });
+});
+document.getElementById('nk-del').addEventListener('click', () => {
+  pinBuf = pinBuf.slice(0, -1); updateDots();
+  document.getElementById('login-err').textContent = '';
+});
+
+// ── State & polling ────────────────────────────────────────────────────────
+let lastVersion = -1;
+
+function phaseLabel(ph) {
+  const map = { clue:'📖 Indizio', challenge:'🔥 Prova in corso', waiting:'⏳ In attesa', done:'🏆 Fine!' };
+  return map[ph] || ph;
+}
+function phaseClass(ph) {
+  const map = { clue:'phase-clue', challenge:'phase-challenge', waiting:'phase-waiting', done:'phase-done' };
+  return map[ph] || '';
+}
+
+async function fetchState() {
+  try {
+    const res = await fetch('/api/admin/state');
+    const st  = await res.json();
+    if (st.version === lastVersion) return;
+    lastVersion = st.version;
+    renderPanel(st);
+  } catch(e) {}
+}
+
+function renderPanel(st) {
+  document.getElementById('step-badge').textContent  = `Tappa ${st.step}/${st.totalSteps}`;
+  document.getElementById('hdr-step').textContent    = `Tappa ${st.step}/${st.totalSteps}`;
+  document.getElementById('hdr-loc').textContent     = st.locationName;
+  document.getElementById('loc-icon').textContent    = st.locationIcon;
+  document.getElementById('loc-name').textContent    = st.locationName;
+  document.getElementById('hint-text').textContent   = st.adminHint;
+
+  const pb = document.getElementById('phase-badge');
+  pb.textContent = phaseLabel(st.phase);
+  pb.className   = 'phase-badge ' + phaseClass(st.phase);
+
+  document.getElementById('btn-approve').disabled = !st.canApprove;
+  document.getElementById('btn-reject').disabled  = !st.canReject;
+
+  // Server info
+  const ip   = st.ip;
+  const port = st.port;
+  const base = `http://${ip}:${port}`;
+  const gl   = document.getElementById('girls-link');
+  gl.href = base + '/'; gl.textContent = base + '/';
+}
+
+setInterval(fetchState, 2000);
+
+// ── API helpers ────────────────────────────────────────────────────────────
+function toast(msg, color) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.style.color = color || '#fff';
+  el.classList.add('show');
+  setTimeout(() => el.classList.remove('show'), 2500);
+}
+
+async function adminPost(endpoint, extra) {
+  const body = JSON.stringify({ pass: adminPass, ...extra });
+  const res  = await fetch(endpoint, { method:'POST', headers:{'Content-Type':'application/json'}, body });
+  return res.json();
+}
+
+document.getElementById('btn-approve').addEventListener('click', async () => {
+  const d = await adminPost('/api/approve');
+  if (d.ok) { toast('✅ Approvato! Prossima tappa...', '#10b981'); lastVersion = -1; fetchState(); }
+  else toast('Errore: ' + d.error, '#ef4444');
+});
+
+document.getElementById('btn-reject').addEventListener('click', async () => {
+  const d = await adminPost('/api/reject');
+  if (d.ok) { toast('❌ Riprova comunicato alle bimbe!', '#f97316'); lastVersion = -1; fetchState(); }
+  else toast('Errore: ' + d.error, '#ef4444');
+});
+
+document.getElementById('btn-skip').addEventListener('click', async () => {
+  if (!confirm('Salta la tappa corrente?')) return;
+  const d = await adminPost('/api/skip');
+  if (d.ok) { toast('⏭ Tappa saltata', '#3b82f6'); lastVersion = -1; fetchState(); }
+});
+
+document.getElementById('btn-prev').addEventListener('click', async () => {
+  if (!confirm('Torna alla tappa precedente?')) return;
+  const d = await adminPost('/api/prev');
+  if (d.ok) { toast('⏮ Tornati indietro', '#3b82f6'); lastVersion = -1; fetchState(); }
+});
+
+document.getElementById('btn-reset').addEventListener('click', async () => {
+  if (!confirm('⚠️ Ricominciare dal principio? Il progresso viene perso!')) return;
+  const d = await adminPost('/api/reset');
+  if (d.ok) { toast('🔄 Gioco azzerato!', '#ffd700'); lastVersion = -1; fetchState(); }
+});
+
+document.getElementById('btn-setpass').addEventListener('click', async () => {
+  const newPass = document.getElementById('new-pin').value.trim();
+  if (!/^\d{4,8}$/.test(newPass)) { toast('❌ Il PIN deve avere 4-8 cifre', '#ef4444'); return; }
+  const d = await adminPost('/api/setpass', { newPass });
+  if (d.ok) { adminPass = newPass; toast('✅ PIN aggiornato!', '#10b981'); document.getElementById('new-pin').value = ''; }
+  else toast('Errore: ' + d.error, '#ef4444');
+});
+</script>
+</body>
+</html>

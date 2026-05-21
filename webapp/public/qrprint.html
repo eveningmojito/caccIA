@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>🖨️ QR Code — Caccia al Tesoro</title>
+  <!-- qrcode.js via CDN (internet required during setup) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: Arial, Helvetica, sans-serif;
+      background: #f5f5f5;
+      color: #111;
+    }
+
+    /* ── Screen-only header ── */
+    .screen-header {
+      background: linear-gradient(135deg, #0f0c29, #302b63);
+      color: #fff;
+      padding: 28px 24px;
+      text-align: center;
+    }
+    .screen-header h1  { font-size: 24px; margin-bottom: 8px; }
+    .screen-header p   { font-size: 14px; opacity: .8; line-height: 1.6; max-width: 540px; margin: 0 auto 18px; }
+    .btn-print {
+      background: linear-gradient(135deg, #FFD700, #FFA500);
+      color: #1a0a00; border: none; border-radius: 12px;
+      padding: 14px 32px; font-size: 16px; font-weight: 700; cursor: pointer;
+    }
+    .btn-print:active { opacity: .85; }
+
+    /* ── Loading / error messages ── */
+    #status { padding: 20px; text-align: center; font-size: 15px; color: #555; }
+
+    /* ── Grid ── */
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 14px;
+      padding: 20px;
+      max-width: 820px;
+      margin: 0 auto;
+    }
+
+    /* ── Each QR card ── */
+    .qr-card {
+      background: #fff;
+      border: 2px solid #111;
+      border-radius: 14px;
+      padding: 16px 12px;
+      text-align: center;
+      page-break-inside: avoid;
+      break-inside: avoid;
+    }
+    .qr-card .tappa-num {
+      font-size: 11px; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 2px; color: #666; margin-bottom: 4px;
+    }
+    .qr-card .icon { font-size: 32px; margin-bottom: 4px; display: block; }
+    .qr-card .loc-name {
+      font-size: 14px; font-weight: 800; margin-bottom: 10px;
+      border-bottom: 1px solid #eee; padding-bottom: 8px;
+    }
+    .qr-wrap { display: flex; justify-content: center; margin-bottom: 8px; }
+    .qr-wrap img, .qr-wrap canvas { max-width: 140px !important; max-height: 140px !important; }
+    .qr-url { font-size: 9px; color: #999; word-break: break-all; }
+
+    /* ── Print styles ── */
+    @media print {
+      body        { background: #fff; }
+      .screen-header { display: none; }
+      #status     { display: none; }
+      .grid       { padding: 10px; gap: 10px; max-width: none; }
+      .qr-card    { border-width: 1.5px; border-radius: 10px; }
+    }
+
+    /* ── 2-col on smaller screens ── */
+    @media screen and (max-width: 600px) {
+      .grid { grid-template-columns: repeat(2, 1fr); }
+    }
+  </style>
+</head>
+<body>
+
+<div class="screen-header">
+  <h1>🖨️ QR Code — Caccia al Tesoro</h1>
+  <p>
+    Stampa questa pagina e ritaglia i QR code.<br>
+    Nascondili nelle location indicate (indicazione sotto il QR).<br>
+    Le bambine scansionano il codice con la fotocamera del telefono.
+  </p>
+  <button class="btn-print" onclick="window.print()">🖨️ Stampa tutti i QR code</button>
+</div>
+
+<div id="status">Generazione QR code in corso...</div>
+<div class="grid" id="grid"></div>
+
+<script>
+const LOCATIONS = [
+  { id: 1, icon: '🧊', name: 'Frigorifero' },
+  { id: 2, icon: '🫧', name: 'Lavatrice' },
+  { id: 3, icon: '🛋️', name: 'Divano' },
+  { id: 4, icon: '🪞', name: 'Specchio del bagno' },
+  { id: 5, icon: '🛏️', name: 'Cuscino del letto' },
+  { id: 6, icon: '📚', name: 'Libreria' },
+  { id: 7, icon: '👟', name: 'Scarpe / Scarpiera' },
+  { id: 8, icon: '🪟', name: 'Finestra' },
+  { id: 9, icon: '🍽️', name: 'Tavolo da pranzo' }
+];
+
+// Derive base URL from where this page was served
+const base = `${location.protocol}//${location.hostname}${location.port ? ':' + location.port : ''}`;
+
+function generate() {
+  if (typeof QRCode === 'undefined') {
+    document.getElementById('status').innerHTML =
+      '⚠️ La libreria QR non si è caricata.<br>Assicurati di essere connesso a internet e ricarica la pagina.';
+    return;
+  }
+
+  document.getElementById('status').style.display = 'none';
+  const grid = document.getElementById('grid');
+
+  LOCATIONS.forEach(loc => {
+    const qrUrl = `${base}/qr/${loc.id}`;
+
+    const card = document.createElement('div');
+    card.className = 'qr-card';
+    card.innerHTML = `
+      <div class="tappa-num">Tappa ${loc.id} di 9</div>
+      <span class="icon">${loc.icon}</span>
+      <div class="loc-name">${loc.name}</div>
+      <div class="qr-wrap" id="qr-${loc.id}"></div>
+      <div class="qr-url">${qrUrl}</div>
+    `;
+    grid.appendChild(card);
+
+    new QRCode(document.getElementById(`qr-${loc.id}`), {
+      text:           qrUrl,
+      width:          140,
+      height:         140,
+      colorDark:      '#111111',
+      colorLight:     '#ffffff',
+      correctLevel:   QRCode.CorrectLevel.M
+    });
+  });
+}
+
+// Small delay to let CDN script load
+if (document.readyState === 'complete') { generate(); }
+else { window.addEventListener('load', generate); }
+</script>
+</body>
+</html>
