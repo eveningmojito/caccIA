@@ -221,6 +221,20 @@ async function handleAdminAuth(req, res) {
   else json(res, { ok: false, error: 'wrong_pass' }, 403);
 }
 
+// Called by in-app QR scanner instead of the redirect-based GET /qr/:n
+async function handleScan(req, res) {
+  const body = await readBody(req);
+  const n = parseInt(body.step ?? -1, 10);
+  if (isNaN(n) || n < 1 || n > TOTAL) {
+    return json(res, { ok: false, error: 'invalid_step' }, 400);
+  }
+  if (n !== state.step) {
+    return json(res, { ok: false, error: 'wrong_step', current: state.step });
+  }
+  if (state.phase === 'clue') { state.phase = 'challenge'; bump(); }
+  json(res, { ok: true });
+}
+
 // ─── Main dispatcher ──────────────────────────────────────────────────────────
 const server = http.createServer(async (req, res) => {
   const { pathname } = url.parse(req.url);
@@ -255,6 +269,7 @@ const server = http.createServer(async (req, res) => {
     if (pathname === '/api/reset')     return handleReset(req, res);
     if (pathname === '/api/setpass')   return handleSetPass(req, res);
     if (pathname === '/api/adminauth') return handleAdminAuth(req, res);
+    if (pathname === '/api/scan')      return handleScan(req, res);
     res.writeHead(404); return res.end();
   }
 

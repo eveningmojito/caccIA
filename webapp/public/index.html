@@ -7,6 +7,8 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="theme-color" content="#0f0c29">
   <title>🏴‍☠️ Caccia al Tesoro</title>
+  <!-- jsQR: pure-JS QR decoder, no dependencies -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jsQR/1.4.0/jsQR.min.js"></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -165,6 +167,59 @@
     }
     @keyframes confetti-fall { to { top: 110vh; opacity: 0; } }
 
+    /* ── QR Scanner overlay ── */
+    #scanner-overlay {
+      position: fixed; inset: 0; z-index: 200; overflow: hidden;
+      flex-direction: column; align-items: center; justify-content: center;
+    }
+    #scan-video {
+      position: absolute; inset: 0;
+      width: 100%; height: 100%; object-fit: cover;
+    }
+    #scan-ui {
+      position: relative; z-index: 1;
+      display: flex; flex-direction: column; align-items: center; gap: 22px;
+      padding: 20px;
+    }
+    /* Viewfinder with box-shadow "mask" — center stays transparent, revealing the video */
+    #scan-vf {
+      width: min(68vw, 260px); height: min(68vw, 260px);
+      position: relative;
+      box-shadow: 0 0 0 100vmax rgba(0,0,0,0.72);
+      border-radius: 4px;
+    }
+    .sc-c { position: absolute; width: 26px; height: 26px; border-color: var(--gold); border-style: solid; }
+    .sc-tl { top:-2px; left:-2px;   border-width:3px 0 0 3px; border-radius:4px 0 0 0; }
+    .sc-tr { top:-2px; right:-2px;  border-width:3px 3px 0 0; border-radius:0 4px 0 0; }
+    .sc-bl { bottom:-2px; left:-2px;  border-width:0 0 3px 3px; border-radius:0 0 0 4px; }
+    .sc-br { bottom:-2px; right:-2px; border-width:0 3px 3px 0; border-radius:0 0 4px 0; }
+    #scan-beam {
+      position: absolute; left: 4%; width: 92%; height: 2px;
+      background: linear-gradient(90deg, transparent, var(--gold), transparent);
+      box-shadow: 0 0 10px 2px rgba(255,215,0,.6);
+      animation: beam 2s ease-in-out infinite;
+    }
+    @keyframes beam { 0%,100%{top:5%} 50%{top:88%} }
+    #scan-hint {
+      color: #fff; font-size: 15px; font-weight: 600; text-align: center;
+      text-shadow: 0 1px 6px rgba(0,0,0,0.9);
+      max-width: 260px; line-height: 1.5;
+    }
+    #scan-error {
+      background: rgba(239,68,68,.18); border: 1px solid rgba(239,68,68,.45);
+      border-radius: 12px; padding: 12px 16px;
+      color: #fca5a5; font-size: 13px; text-align: center;
+      white-space: pre-line; max-width: 290px; line-height: 1.55;
+      display: none;
+    }
+    #btn-scan-close {
+      background: rgba(255,255,255,.15); border: 1px solid rgba(255,255,255,.3);
+      border-radius: 100px; padding: 12px 28px;
+      color: #fff; font-size: 15px; font-weight: 700; cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+    }
+    #btn-scan-close:active { background: rgba(255,255,255,.25); }
+
     /* ── Responsive ── */
     @media (min-width: 600px) {
       .clue-poem { font-size: 19px; }
@@ -189,9 +244,26 @@
     <div class="clue-poem" id="clue-poem"></div>
   </div>
 
-  <div class="scan-hint">
-    <span style="font-size:28px;">📷</span>
-    <span>Trovate la stanza, scansionate il QR code con la fotocamera!</span>
+  <button class="btn btn-purple" id="btn-open-scanner">
+    📷 Scansiona il QR code
+  </button>
+</div>
+
+<!-- QR SCANNER OVERLAY -->
+<div id="scanner-overlay" style="display:none;">
+  <video id="scan-video" playsinline muted></video>
+  <canvas id="scan-canvas" style="display:none;"></canvas>
+  <div id="scan-ui">
+    <div id="scan-vf">
+      <div class="sc-c sc-tl"></div>
+      <div class="sc-c sc-tr"></div>
+      <div class="sc-c sc-bl"></div>
+      <div class="sc-c sc-br"></div>
+      <div id="scan-beam"></div>
+    </div>
+    <div id="scan-hint">Punta la fotocamera sul QR code</div>
+    <div id="scan-error"></div>
+    <button id="btn-scan-close">✕ Chiudi</button>
   </div>
 </div>
 
@@ -413,6 +485,113 @@ document.getElementById('btn-back').addEventListener('click', poll);
 document.getElementById('btn-timer').addEventListener('click', function() {
   startTimer(parseInt(this.dataset.secs, 10));
 });
+
+// ── QR Scanner ────────────────────────────────────────────────────────────
+let scanStream     = null;
+let scanAnimFrame  = null;
+let lastScanTime   = 0;
+
+function showScanError(msg) {
+  const el = document.getElementById('scan-error');
+  el.textContent = msg; el.style.display = 'block';
+}
+
+async function openScanner() {
+  const overlay = document.getElementById('scanner-overlay');
+  document.getElementById('scan-error').style.display = 'none';
+  overlay.style.display = 'flex';
+
+  const video = document.getElementById('scan-video');
+  try {
+    scanStream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } }
+    });
+    video.srcObject = scanStream;
+    await video.play();
+    scanAnimFrame = requestAnimationFrame(scanLoop);
+  } catch (err) {
+    const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+    if (isIOS && location.protocol !== 'https:') {
+      showScanError('Su iPhone la fotocamera in-app richiede HTTPS.\n\n👉 Usa la Camera app: inquadra il QR code e tocca il link che appare.');
+    } else if (err.name === 'NotAllowedError') {
+      showScanError('Permesso fotocamera negato.\nControlla le impostazioni del browser e riprova.');
+    } else if (err.name === 'NotFoundError') {
+      showScanError('Nessuna fotocamera trovata su questo dispositivo.');
+    } else {
+      showScanError('Fotocamera non disponibile.\nUsa la fotocamera nativa del telefono.');
+    }
+  }
+}
+
+function closeScanner() {
+  if (scanAnimFrame) { cancelAnimationFrame(scanAnimFrame); scanAnimFrame = null; }
+  if (scanStream)    { scanStream.getTracks().forEach(t => t.stop()); scanStream = null; }
+  document.getElementById('scan-video').srcObject = null;
+  document.getElementById('scanner-overlay').style.display = 'none';
+}
+
+function scanLoop(ts) {
+  if (!scanStream) return;
+  scanAnimFrame = requestAnimationFrame(scanLoop);
+  if (ts - lastScanTime < 150) return; // ~6 fps is enough for QR scanning
+  lastScanTime = ts;
+
+  const video  = document.getElementById('scan-video');
+  const canvas = document.getElementById('scan-canvas');
+  if (video.readyState < video.HAVE_ENOUGH_DATA) return;
+
+  // Downsample to max 640px wide for performance
+  const scale  = Math.min(1, 640 / video.videoWidth);
+  canvas.width  = Math.round(video.videoWidth  * scale);
+  canvas.height = Math.round(video.videoHeight * scale);
+  const ctx = canvas.getContext('2d');
+  ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+  if (typeof jsQR === 'undefined') return; // CDN not loaded yet
+  const img  = ctx.getImageData(0, 0, canvas.width, canvas.height);
+  const code = jsQR(img.data, img.width, img.height, { inversionAttempts: 'dontInvert' });
+  if (code) handleScannedQR(code.data);
+}
+
+async function handleScannedQR(data) {
+  // Accept full URL (http://192.168.x.x:8080/qr/3) or bare path (/qr/3)
+  const match = data.match(/\/qr\/(\d+)/);
+  if (!match) {
+    closeScanner();
+    scanToast('QR non riconosciuto — usa i codici della caccia al tesoro 🏴‍☠️', '#ef4444');
+    return;
+  }
+  const step = parseInt(match[1], 10);
+  closeScanner();
+
+  try {
+    const res  = await fetch('/api/scan', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ step })
+    });
+    const data2 = await res.json();
+    if (data2.ok) {
+      lastVersion = -1; poll();
+    } else if (data2.error === 'wrong_step') {
+      scanToast(`Questo è il QR della tappa ${step}, ma siete alla tappa ${data2.current}! 🔍`, '#f97316');
+    }
+  } catch(e) { poll(); }
+}
+
+function scanToast(msg, bg) {
+  const el = document.createElement('div');
+  el.style.cssText = `position:fixed;bottom:32px;left:50%;transform:translateX(-50%);`
+    + `background:${bg || 'rgba(30,27,75,.95)'};color:#fff;`
+    + `padding:12px 20px;border-radius:12px;font-size:14px;font-weight:600;`
+    + `z-index:500;text-align:center;max-width:300px;box-shadow:0 4px 20px rgba(0,0,0,.5);`
+    + `line-height:1.4;pointer-events:none;`;
+  el.textContent = msg;
+  document.body.appendChild(el);
+  setTimeout(() => el.remove(), 3200);
+}
+
+document.getElementById('btn-open-scanner').addEventListener('click', openScanner);
+document.getElementById('btn-scan-close').addEventListener('click', closeScanner);
 
 // ── Confetti ───────────────────────────────────────────────────────────────
 function launchConfetti() {
