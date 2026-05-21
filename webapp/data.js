@@ -17,9 +17,9 @@ module.exports = [
     locationIcon: '🫧',
     cluePoem: 'Bravissime! Avete superato la prima prova, campionesse!\nOra pensate: dov\'è che gira e gira il bucato nelle vostre imprese?\nLa mamma ci mette i vestiti, poi li fa uscire puliti —\nCorrete là, non perdete altri minuti!',
     challengeTitle: 'Prova 2 — Il Messaggio Segreto',
-    challengeText: 'L\'arbitro vi consegna un foglio con un messaggio scritto al contrario.\n\nDovete decifrarlo e leggerlo ad alta voce entro 2 minuti!\n\nMessaggio da decifrare:\n«!iam ononederra is non essorutneva essecipnirp eL»\n\n💡 Potete usare uno specchio oppure riscriverlo lettera per lettera!',
+    challengeText: 'Ecco il messaggio segreto, scritto al contrario!\n\nDecifratelo e leggetelo ad alta voce entro 2 minuti.\n\n«!iam ononederra is non essorutneva essecipnirp eL»\n\n💡 Potete usare uno specchio oppure riscriverlo lettera per lettera!',
     timerSecs: 120,
-    adminHint: 'Preparate un foglio con il messaggio scritto al contrario: «!iam ononederra is non essorutneva essecipnirp eL»\nSoluzione: «Le principesse avventurose non si arrendono mai!»\nAvviate il timer sul loro schermo. Tempo limite: 2 minuti.'
+    adminHint: 'Il messaggio è già visibile sul loro schermo — non serve preparare niente!\nSoluzione: «Le principesse avventurose non si arrendono mai!»\nAvviate il timer sul loro schermo. Tempo limite: 2 minuti.'
   },
   {
     id: 3,
@@ -27,9 +27,9 @@ module.exports = [
     locationIcon: '🛋️',
     cluePoem: 'Fantastico! La vostra avventura procede alla grande.\nCercate ora il posto più morbido di queste terre lontane.\nDove tutta la famiglia si siede a guardare la TV —\nTra i cuscini si nasconde qualcosa... forse c\'è!',
     challengeTitle: 'Prova 3 — Il Quiz a Squadra',
-    challengeText: 'L\'arbitro vi fa 5 domande — una ciascuna!\n\nDovete risponderle tutte e 5 correttamente.\nAvete 3 tentativi totali come squadra.\n\n1️⃣  Quante zampe ha un ragno?\n2️⃣  Di che colore diventa il cielo al tramonto?\n3️⃣  Come si chiama la capitale d\'Italia?\n4️⃣  Quanti mesi ha un anno?\n5️⃣  Qual è il pianeta più grande del sistema solare?',
+    challengeText: 'Cinque domande sullo schermo — una ciascuna!\n\nRispondete a turno ad alta voce.\nAvete 3 tentativi totali come squadra.\n\n1️⃣  Quante zampe ha un ragno?\n2️⃣  Di che colore diventa il cielo al tramonto?\n3️⃣  Come si chiama la capitale d\'Italia?\n4️⃣  Quanti mesi ha un anno?\n5️⃣  Qual è il pianeta più grande del sistema solare?',
     timerSecs: 0,
-    adminHint: 'Risposte: 1) 8  2) arancione/rosso (accettate varianti creative)  3) Roma  4) 12  5) Giove\nUna domanda per bambina, 30 secondi a risposta. Se una sbaglia, la squadra perde un tentativo (3 totali). Se finiscono i tentativi, rileggete tutte le domande dall\'inizio.'
+    adminHint: 'Le domande sono visibili sul loro schermo. Risposte: 1) 8  2) arancione/rosso (accettate varianti creative)  3) Roma  4) 12  5) Giove\nUna domanda per bambina, 30 secondi a risposta. Se una sbaglia, la squadra perde un tentativo (3 totali). Se finiscono i tentativi, si riparte dalla domanda 1.'
   },
   {
     id: 4,
