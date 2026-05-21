@@ -229,7 +229,7 @@ async function handleAdminAuth(req, res) {
 // Called by in-app QR scanner instead of the redirect-based GET /qr/:n
 async function handleScan(req, res) {
   const body = await readBody(req);
-  const n = parseInt(body.step ?? -1, 10);
+  const n = parseInt(body.step != null ? body.step : -1, 10);
   if (isNaN(n) || n < 1 || n > TOTAL) {
     return json(res, { ok: false, error: 'invalid_step' }, 400);
   }
